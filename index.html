@@ -1,0 +1,886 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Celebration Quest 3D — The Festival Maze Adventure</title>
+    <!-- Tailwind CSS for modern responsive UI overlay -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Three.js Library -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Fredoka:wght@400;600;700&display=swap');
+        body {
+            font-family: 'Fredoka', cursive, sans-serif;
+            overflow: hidden;
+            user-select: none;
+            background-color: #0f172a;
+        }
+        canvas {
+            display: block;
+            width: 100vw;
+            height: 100vh;
+        }
+        ::-webkit-scrollbar {
+            width: 8px;
+        }
+        ::-webkit-scrollbar-thumb {
+            background: #cbd5e1;
+            border-radius: 9999px;
+        }
+        .bouncing-title {
+            animation: bounce 2s infinite;
+        }
+        @keyframes bounce {
+            0%, 100% { transform: translateY(-5%); animation-timing-function: cubic-bezier(0.8,0,1,1); }
+            50% { transform: none; animation-timing-function: cubic-bezier(0,0,0.2,1); }
+        }
+    </style>
+</head>
+<body class="relative w-screen h-screen m-0 p-0 overflow-hidden">
+
+    <!-- 3D Canvas Container -->
+    <div id="canvas-container" class="absolute inset-0 z-0"></div>
+
+    <!-- START SCREEN OVERLAY -->
+    <div id="start-screen" class="absolute inset-0 z-50 flex items-center justify-center bg-gradient-to-br from-amber-500 via-rose-500 to-indigo-600 p-4">
+        <div class="bg-white/95 backdrop-blur-md rounded-3xl p-8 max-w-xl w-full text-center shadow-2xl border-4 border-yellow-300">
+            <div class="text-6xl mb-3">🎉 🎂 🌙 🧧 🪔 🎄</div>
+            <h1 class="text-4xl font-bold text-rose-700 mb-2 bouncing-title">Celebration Quest 3D</h1>
+            <p class="text-gray-600 mb-6 text-sm md:text-base">
+                Welcome, Festival Hero! Explore the magical storybook labyrinth, collect the 5 celebration crystals, and complete fun English challenges!
+            </p>
+            
+            <div class="bg-rose-50 p-4 rounded-2xl mb-6 text-left border border-rose-100">
+                <h3 class="font-bold text-rose-800 mb-2 text-sm uppercase tracking-wide">🎮 How to Play:</h3>
+                <ul class="text-xs md:text-sm text-gray-700 space-y-1">
+                    <li>• <strong>W / ArrowUp:</strong> Move Forward</li>
+                    <li>• <strong>S / ArrowDown:</strong> Move Backward</li>
+                    <li>• <strong>A / ArrowLeft:</strong> Move Left</li>
+                    <li>• <strong>D / ArrowRight:</strong> Move Right</li>
+                    <li>• <strong>Look Around:</strong> Click & Drag Mouse</li>
+                    <li>• <strong>Interact:</strong> Walk up to glowing crystals!</li>
+                </ul>
+            </div>
+
+            <button id="start-btn" class="w-full py-4 bg-gradient-to-r from-yellow-400 to-amber-500 hover:from-yellow-500 hover:to-amber-600 text-indigo-950 font-bold text-xl rounded-2xl shadow-lg transform transition hover:scale-105 active:scale-95 border-b-4 border-amber-600">
+                🚀 START ADVENTURE!
+            </button>
+        </div>
+    </div>
+
+    <!-- HUD (Heads-Up Display) -->
+    <div id="hud" class="absolute inset-0 z-10 pointer-events-none hidden flex flex-col justify-between p-4 md:p-6">
+        <!-- Top Bar -->
+        <div class="flex justify-between items-start">
+            <div class="bg-white/90 backdrop-blur-md px-5 py-3 rounded-2xl shadow-lg border-2 border-rose-200 pointer-events-auto flex items-center gap-4">
+                <div>
+                    <div class="text-xs font-bold text-rose-500 uppercase">Current Zone</div>
+                    <div id="hud-zone" class="text-lg md:text-xl font-bold text-gray-800">🎂 Birthday Bonanza</div>
+                </div>
+            </div>
+
+            <div class="flex gap-3">
+                <div class="bg-white/90 backdrop-blur-md px-4 py-3 rounded-2xl shadow-lg border-2 border-amber-200 pointer-events-auto flex items-center gap-2">
+                    <span class="text-2xl">💎</span>
+                    <div>
+                        <div class="text-xs font-bold text-amber-600 uppercase">Crystals</div>
+                        <div id="hud-crystals" class="text-lg font-bold text-gray-800">0 / 5</div>
+                    </div>
+                </div>
+                <div class="bg-white/90 backdrop-blur-md px-4 py-3 rounded-2xl shadow-lg border-2 border-purple-200 pointer-events-auto flex items-center gap-2">
+                    <span class="text-2xl">⭐</span>
+                    <div>
+                        <div class="text-xs font-bold text-purple-600 uppercase">Score</div>
+                        <div id="hud-score" class="text-lg font-bold text-gray-800">0 pts</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Bottom Helper / Controls info -->
+        <div class="flex justify-between items-end">
+            <div class="bg-white/80 backdrop-blur-sm px-4 py-2 rounded-xl text-xs text-gray-700 shadow border border-gray-200">
+                Use <strong class="text-rose-600">W (Forward), S (Backward), A (Left), D (Right)</strong> to navigate maze.
+            </div>
+            <div id="objective-banner" class="bg-rose-900/90 text-white px-5 py-3 rounded-2xl shadow-xl border-2 border-rose-400 max-w-sm text-center animate-pulse">
+                <div class="text-xs font-bold text-yellow-300 uppercase">Current Mission</div>
+                <div id="hud-objective" class="text-sm font-semibold">Find the glowing crystal in the Birthday Zone!</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- CHALLENGE MODAL -->
+    <div id="challenge-modal" class="absolute inset-0 z-50 hidden flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
+        <div class="bg-white rounded-3xl p-6 md:p-8 max-w-lg w-full shadow-2xl border-4 border-rose-400 transform transition-all">
+            <div class="flex justify-between items-center mb-4">
+                <span id="challenge-badge" class="bg-rose-100 text-rose-800 text-xs font-bold px-3 py-1 rounded-full uppercase tracking-wide">English Challenge</span>
+                <span id="challenge-zone-tag" class="text-sm font-semibold text-gray-500">Zone 1</span>
+            </div>
+
+            <h2 id="challenge-question" class="text-xl md:text-2xl font-bold text-gray-800 mb-6">
+                Question loading...
+            </h2>
+
+            <div class="mb-4">
+                <button id="speak-question-btn" onclick="speakCurrentQuestion()" class="px-4 py-2 bg-purple-100 hover:bg-purple-200 text-purple-800 font-bold rounded-xl text-sm flex items-center gap-2 border border-purple-300 transition">
+                    🔊 Listen to Question
+                </button>
+            </div>
+
+            <div id="challenge-options" class="grid grid-cols-1 gap-3 mb-6">
+                <!-- Dynamic Options inserted here -->
+            </div>
+
+            <div id="challenge-feedback" class="hidden p-4 rounded-2xl text-center font-bold text-sm mb-4"></div>
+
+            <button id="challenge-next-btn" class="hidden w-full py-3 bg-rose-600 hover:bg-rose-700 text-white font-bold rounded-xl shadow transition">
+                Continue Adventure 🚀
+            </button>
+        </div>
+    </div>
+
+    <!-- VICTORY SCREEN -->
+    <div id="victory-screen" class="absolute inset-0 z-50 hidden flex items-center justify-center bg-gradient-to-br from-yellow-400 via-pink-500 to-purple-600 p-4">
+        <div class="bg-white/95 backdrop-blur-md rounded-3xl p-8 max-w-xl w-full text-center shadow-2xl border-4 border-yellow-200">
+            <div class="text-6xl mb-3 animate-bounce">🏆🎉✨</div>
+            <h1 class="text-4xl font-bold text-rose-700 mb-2">CONGRATULATIONS, FESTIVAL HERO!</h1>
+            <p class="text-gray-600 mb-4 text-sm md:text-base">
+                You successfully explored the entire enchanted maze, collected all 5 magical crystals, and completed all English challenges!
+            </p>
+
+            <div class="bg-rose-50 p-4 rounded-2xl mb-5 border border-rose-100 text-left">
+                <h3 class="font-bold text-rose-800 mb-1 text-sm uppercase tracking-wide text-center">📊 Your Final Score:</h3>
+                <div id="final-score-display" class="text-3xl font-extrabold text-rose-600 mb-3 text-center">100 / 100 pts</div>
+                
+                <!-- Name Entry for Leaderboard & Google Sheets -->
+                <div id="leaderboard-form" class="space-y-3">
+                    <label class="block text-xs font-bold text-gray-700 uppercase">Enter Your Name for the Leaderboard:</label>
+                    <div class="flex gap-2">
+                        <input type="text" id="player-name-input" placeholder="e.g. Festival Hero" maxlength="20" class="flex-1 px-4 py-2 border-2 border-rose-300 rounded-xl focus:outline-none focus:border-rose-500 font-semibold text-gray-800">
+                        <button id="submit-score-btn" onclick="submitScoreToLeaderboard()" class="px-5 py-2 bg-rose-600 hover:bg-rose-700 text-white font-bold rounded-xl shadow transition">
+                            💾 Save Score
+                        </button>
+                    </div>
+                </div>
+
+                <div id="sheet-sync-status" class="text-xs text-gray-500 italic mt-3 text-center">⏳ Ready to save score to Google Sheets...</div>
+            </div>
+
+            <!-- Leaderboard Table Preview -->
+            <div id="leaderboard-container" class="bg-white rounded-2xl p-4 mb-5 border border-gray-200 max-h-40 overflow-y-auto hidden">
+                <h4 class="font-bold text-gray-800 text-xs uppercase mb-2">🏆 Recent Leaderboard Heroes</h4>
+                <div id="leaderboard-list" class="space-y-1 text-xs text-gray-600">
+                    <!-- Dynamic entries -->
+                </div>
+            </div>
+
+            <button onclick="location.reload()" class="w-full py-3 bg-gradient-to-r from-rose-600 to-purple-600 hover:from-rose-700 hover:to-purple-700 text-white font-bold text-lg rounded-2xl shadow-lg transform transition hover:scale-105 active:scale-95 border-b-4 border-rose-800">
+                🔄 PLAY AGAIN
+            </button>
+        </div>
+    </div>
+
+    <!-- MAIN GAME LOGIC -->
+    <script>
+        // Game State
+        const state = {
+            gameStarted: false,
+            crystalsCollected: 0,
+            challengesCompleted: 0,
+            score: 0,
+            currentZoneIndex: 0,
+            isPaused: false
+        };
+
+        // Google Sheets Integration Configuration (Apps Script Web App Endpoint)
+        // Paste your deployed Google Apps Script Web App URL below
+        const GOOGLE_SHEET_WEBHOOK_URL = ""; 
+
+        function submitScoreToLeaderboard() {
+            const nameInput = document.getElementById('player-name-input');
+            const playerName = nameInput.value.trim() || "Festival Hero";
+            const statusEl = document.getElementById('sheet-sync-status');
+            const submitBtn = document.getElementById('submit-score-btn');
+
+            submitBtn.disabled = true;
+            submitBtn.classList.add('opacity-50', 'cursor-not-allowed');
+
+            const scoreData = {
+                timestamp: new Date().toLocaleString(),
+                playerName: playerName,
+                score: state.score,
+                crystals: state.crystalsCollected,
+                challengesCompleted: state.challengesCompleted
+            };
+
+            // Save locally to leaderboard list in localStorage
+            let leaderboard = JSON.parse(localStorage.getItem('festival_leaderboard') || '[]');
+            leaderboard.push(scoreData);
+            leaderboard.sort((a, b) => b.score - a.score);
+            localStorage.setItem('festival_leaderboard', JSON.stringify(leaderboard.slice(0, 10))); // Top 10
+            
+            displayLeaderboard();
+
+            if (!GOOGLE_SHEET_WEBHOOK_URL) {
+                statusEl.innerHTML = `✅ Score saved locally as <strong>${playerName}</strong>! <br><span class="text-[10px] text-gray-400">To sync online, paste your Google Apps Script Web App URL in the game code.</span>`;
+                return;
+            }
+
+            statusEl.innerHTML = "⏳ Sending score to Google Sheet...";
+
+            fetch(GOOGLE_SHEET_WEBHOOK_URL, {
+                method: "POST",
+                mode: "no-cors",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify(scoreData)
+            }).then(() => {
+                statusEl.innerHTML = `✅ Successfully saved to Google Sheet for <strong>${playerName}</strong>!`;
+            }).catch(err => {
+                console.error("Sheet sync error:", err);
+                statusEl.innerHTML = "⚠️ Saved locally. Check network or webhook URL.";
+            });
+        }
+
+        function displayLeaderboard() {
+            const leaderboard = JSON.parse(localStorage.getItem('festival_leaderboard') || '[]');
+            const container = document.getElementById('leaderboard-container');
+            const listEl = document.getElementById('leaderboard-list');
+
+            if (leaderboard.length > 0) {
+                container.classList.remove('hidden');
+                listEl.innerHTML = leaderboard.map((entry, idx) => `
+                    <div class="flex justify-between items-center py-1 border-b border-gray-100 font-medium">
+                        <span>${idx + 1}. 🌟 ${entry.playerName}</span>
+                        <span class="font-bold text-rose-600">${entry.score} pts</span>
+                    </div>
+                `).join('');
+            }
+        }
+
+        // Zones Configuration & English Challenges
+        const zones = [
+            {
+                name: "Birthday Bonanza 🎂",
+                color: 0xec4899,
+                wallColor: 0xdb2777,
+                crystalPos: { x: 8, z: 8 },
+                barrierZ: 12,
+                challenge: {
+                    type: "multiple-choice",
+                    question: "We put sweet glowing ______ on top of the birthday cake.",
+                    options: ["shoes", "candles", "pencils"],
+                    correctIndex: 1,
+                    feedback: "Correct! Candles make birthday cakes look magical and bright!"
+                }
+            },
+            {
+                name: "Hari Raya Happiness 🌙",
+                color: 0x10b981,
+                wallColor: 0x059669,
+                crystalPos: { x: -8, z: 18 },
+                barrierZ: 22,
+                challenge: {
+                    type: "multiple-choice",
+                    question: "During Hari Raya, families decorate their open houses with traditional oil ______ and sparkling lights.",
+                    options: ["lamps", "bicycles", "books"],
+                    correctIndex: 0,
+                    feedback: "Fantastic! Traditional lamps and lights make homes warm and welcoming."
+                }
+            },
+            {
+                name: "Chinese New Year Adventure 🧧",
+                color: 0xef4444,
+                wallColor: 0xdc2626,
+                crystalPos: { x: 8, z: 28 },
+                barrierZ: 32,
+                challenge: {
+                    type: "multiple-choice",
+                    question: "We hang bright red ______ outside our homes during Chinese New Year for good luck.",
+                    options: ["umbrellas", "lanterns", "backpacks"],
+                    correctIndex: 1,
+                    feedback: "Spot on! Red lanterns bring joy, warmth, and good luck."
+                }
+            },
+            {
+                name: "Deepavali Light Kingdom 🪔",
+                color: 0xf59e0b,
+                wallColor: 0xd97706,
+                crystalPos: { x: -8, z: 38 },
+                barrierZ: 42,
+                challenge: {
+                    type: "multiple-choice",
+                    question: "Colourful flower and rice powder patterns drawn on the floor are called ______.",
+                    options: ["kolam", "desks", "carpets"],
+                    correctIndex: 0,
+                    feedback: "Brilliant! Kolam patterns welcome guests with bright, beautiful colours."
+                }
+            },
+            {
+                name: "Christmas Wonderland 🎄",
+                color: 0x3b82f6,
+                wallColor: 0x2563eb,
+                crystalPos: { x: 0, z: 48 },
+                barrierZ: 50,
+                challenge: {
+                    type: "multiple-choice",
+                    question: "We decorate the tall green ______ with shiny ornaments, ribbons, and a star on top.",
+                    options: ["tree", "chair", "table"],
+                    correctIndex: 0,
+                    feedback: "Wonderful! The Christmas tree is decorated beautifully for the holiday."
+                }
+            }
+        ];
+
+        // Three.js Setup
+        let scene, camera, renderer;
+        let playerMesh;
+        let leftArm, rightArm, headGroup;
+        const walls = [];
+        const crystals = [];
+        const barriers = [];
+        const keys = { w: false, a: false, s: false, d: false };
+
+        let cameraAngle = 0;
+        let isMouseDown = false;
+        let mouseX = 0;
+        let currentActiveQuestionText = "";
+        let ukVoice = null;
+
+        function initVoices() {
+            if ('speechSynthesis' in window) {
+                const updateVoices = () => {
+                    const voices = window.speechSynthesis.getVoices();
+                    ukVoice = voices.find(v => v.lang === 'en-GB' && (v.name.includes('Natural') || v.name.includes('Google') || v.name.includes('UK English'))) ||
+                              voices.find(v => v.lang === 'en-GB') ||
+                              voices.find(v => v.lang.startsWith('en'));
+                };
+                updateVoices();
+                window.speechSynthesis.onvoiceschanged = updateVoices;
+            }
+        }
+
+        function speakText(text) {
+            if ('speechSynthesis' in window) {
+                window.speechSynthesis.cancel();
+                const utterance = new SpeechSynthesisUtterance(text);
+                utterance.rate = 0.85;
+                utterance.pitch = 1.0;
+                if (ukVoice) {
+                    utterance.voice = ukVoice;
+                }
+                window.speechSynthesis.speak(utterance);
+            }
+        }
+
+        function speakCurrentQuestion() {
+            if (currentActiveQuestionText) {
+                speakText(currentActiveQuestionText);
+            }
+        }
+
+        function init() {
+            initVoices();
+
+            // Scene
+            scene = new THREE.Scene();
+            scene.background = new THREE.Color(0x38bdf8);
+            scene.fog = new THREE.FogExp2(0x38bdf8, 0.012);
+
+            // Camera
+            camera = new THREE.PerspectiveCamera(60, window.innerWidth / window.innerHeight, 0.1, 1000);
+
+            // Renderer
+            renderer = new THREE.WebGLRenderer({ antialias: true, powerPreference: "high-performance" });
+            renderer.setSize(window.innerWidth, window.innerHeight);
+            renderer.shadowMap.enabled = true;
+            renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+            renderer.toneMapping = THREE.ACESFilmicToneMapping;
+            renderer.toneMappingExposure = 1.2;
+            document.getElementById('canvas-container').appendChild(renderer.domElement);
+
+            // Lighting
+            const ambientLight = new THREE.AmbientLight(0xfff7ed, 0.9);
+            scene.add(ambientLight);
+
+            const dirLight = new THREE.DirectionalLight(0xfef08a, 1.4);
+            dirLight.position.set(30, 60, 30);
+            dirLight.castShadow = true;
+            dirLight.shadow.mapSize.width = 2048;
+            dirLight.shadow.mapSize.height = 2048;
+            scene.add(dirLight);
+
+            const rimLight = new THREE.DirectionalLight(0xf43f5e, 1.0);
+            rimLight.position.set(-30, 40, -30);
+            scene.add(rimLight);
+
+            // Build Environment
+            buildEnvironment();
+
+            // Spawn Crystals for each zone
+            spawnCrystals();
+
+            // Event Listeners
+            window.addEventListener('resize', onWindowResize);
+            window.addEventListener('keydown', (e) => handleKey(e, true));
+            window.addEventListener('keyup', (e) => handleKey(e, false));
+
+            // Mouse Look Listeners
+            const container = document.getElementById('canvas-container');
+            container.addEventListener('mousedown', (e) => {
+                if(!state.gameStarted || state.isPaused) return;
+                isMouseDown = true;
+                mouseX = e.clientX;
+            });
+            window.addEventListener('mouseup', () => { isMouseDown = false; });
+            container.addEventListener('mousemove', (e) => {
+                if (!isMouseDown || !state.gameStarted || state.isPaused) return;
+                const deltaX = e.clientX - mouseX;
+                mouseX = e.clientX;
+                cameraAngle -= deltaX * 0.005;
+            });
+
+            // Touch Support
+            container.addEventListener('touchstart', (e) => {
+                if(!state.gameStarted || state.isPaused) return;
+                isMouseDown = true;
+                mouseX = e.touches[0].clientX;
+            });
+            window.addEventListener('touchend', () => { isMouseDown = false; });
+            container.addEventListener('touchmove', (e) => {
+                if (!isMouseDown || !state.gameStarted || state.isPaused) return;
+                const deltaX = e.touches[0].clientX - mouseX;
+                mouseX = e.touches[0].clientX;
+                cameraAngle -= deltaX * 0.005;
+            });
+
+            // Start Button Handler
+            document.getElementById('start-btn').addEventListener('click', () => {
+                document.getElementById('start-screen').classList.add('hidden');
+                document.getElementById('hud').classList.remove('hidden');
+                state.gameStarted = true;
+            });
+
+            animate();
+        }
+
+        function buildEnvironment() {
+            // Ground
+            const groundGeo = new THREE.PlaneGeometry(80, 120, 32, 32);
+            const groundMat = new THREE.MeshStandardMaterial({ color: 0x22c55e, roughness: 0.85 });
+            const ground = new THREE.Mesh(groundGeo, groundMat);
+            ground.rotation.x = -Math.PI / 2;
+            ground.receiveShadow = true;
+            scene.add(ground);
+
+            // Pathway
+            const pathGeo = new THREE.PlaneGeometry(4.5, 110);
+            const pathMat = new THREE.MeshStandardMaterial({ color: 0xcbd5e1, roughness: 0.6 });
+            const path = new THREE.Mesh(pathGeo, pathMat);
+            path.rotation.x = -Math.PI / 2;
+            path.position.set(0, 0.02, 25);
+            path.receiveShadow = true;
+            scene.add(path);
+
+            const wallMaterial = new THREE.MeshStandardMaterial({ color: 0x16a34a, roughness: 0.75 });
+            
+            function addWall(x, z, width, depth, height = 4.0) {
+                const wallGeo = new THREE.BoxGeometry(width, height, depth);
+                const wall = new THREE.Mesh(wallGeo, wallMaterial);
+                wall.position.set(x, height / 2, z);
+                wall.castShadow = true;
+                wall.receiveShadow = true;
+                scene.add(wall);
+                walls.push(wall);
+            }
+
+            // Outer Bounds
+            addWall(0, -5, 44, 1.5);
+            addWall(0, 55, 44, 1.5);
+            addWall(-22, 25, 1.5, 62);
+            addWall(22, 25, 1.5, 62);
+
+            // --- Perpendicular / Orthogonal Maze Walls ---
+            // Horizontal and vertical intersecting 90-degree corridors and partitions
+            addWall(-10, 8, 20, 1.5);   // Horizontal left wall
+            addWall(10, 16, 20, 1.5);  // Horizontal right wall
+            addWall(-10, 24, 20, 1.5);  // Horizontal left wall
+            addWall(10, 32, 20, 1.5);  // Horizontal right wall
+            addWall(-10, 40, 20, 1.5);  // Horizontal left wall
+
+            // Perpendicular cross-walls (Vertical segments branching at 90 degrees)
+            addWall(-5, 4, 1.5, 10);
+            addWall(5, 12, 1.5, 10);
+            addWall(-5, 20, 1.5, 10);
+            addWall(5, 28, 1.5, 10);
+            addWall(-5, 36, 1.5, 10);
+
+            // --- Solid Festival Zone Wall Barriers (Solid masonry / hedge wall completely blocking the corridor path) ---
+            zones.forEach((zone, index) => {
+                const barrierGeo = new THREE.BoxGeometry(19.0, 4.0, 1.5); // Spans almost the full corridor width (-9.5 to +9.5)
+                const barrierMat = new THREE.MeshStandardMaterial({ 
+                    color: zone.wallColor || 0x1e293b, 
+                    roughness: 0.4,
+                    metalness: 0.3
+                });
+                const barrierMesh = new THREE.Mesh(barrierGeo, barrierMat);
+                barrierMesh.position.set(0, 2.0, zone.barrierZ);
+                barrierMesh.castShadow = true;
+                barrierMesh.receiveShadow = true;
+                barrierMesh.userData = { zoneIndex: index, isOpen: false };
+                scene.add(barrierMesh);
+                barriers.push(barrierMesh);
+            });
+
+            // --- Stylized 3D Android Robot Avatar ---
+            const playerGroup = new THREE.Group();
+            const robotMaterial = new THREE.MeshStandardMaterial({ color: 0x3ddc84, roughness: 0.4, metalness: 0.2 });
+
+            const antennaGeo = new THREE.CylinderGeometry(0.02, 0.02, 0.35, 16);
+            const leftAntenna = new THREE.Mesh(antennaGeo, robotMaterial);
+            leftAntenna.position.set(-0.22, 2.2, 0);
+            leftAntenna.rotation.z = 0.35;
+            leftAntenna.castShadow = true;
+            playerGroup.add(leftAntenna);
+
+            const rightAntenna = new THREE.Mesh(antennaGeo, robotMaterial);
+            rightAntenna.position.set(0.22, 2.2, 0);
+            rightAntenna.rotation.z = -0.35;
+            rightAntenna.castShadow = true;
+            playerGroup.add(rightAntenna);
+
+            const headGeo = new THREE.SphereGeometry(0.65, 32, 16, 0, Math.PI * 2, 0, Math.PI / 2);
+            const headMesh = new THREE.Mesh(headGeo, robotMaterial);
+            headMesh.castShadow = true;
+            
+            headGroup = new THREE.Group();
+            headGroup.position.y = 1.7;
+            headMesh.position.y = 0;
+            headGroup.add(headMesh);
+
+            const eyeGeo = new THREE.SphereGeometry(0.07, 16, 16);
+            const eyeMat = new THREE.MeshStandardMaterial({ color: 0x38bdf8, emissive: 0x38bdf8, emissiveIntensity: 0.8 });
+            const leftEye = new THREE.Mesh(eyeGeo, eyeMat);
+            leftEye.position.set(-0.25, 0.12, 0.55);
+            headGroup.add(leftEye);
+            const rightEye = new THREE.Mesh(eyeGeo, eyeMat);
+            rightEye.position.set(0.25, 0.12, 0.55);
+            headGroup.add(rightEye);
+
+            playerGroup.add(headGroup);
+
+            const torsoGeo = new THREE.CylinderGeometry(0.55, 0.55, 0.9, 32);
+            const torsoMesh = new THREE.Mesh(torsoGeo, robotMaterial);
+            torsoMesh.position.y = 1.1;
+            torsoMesh.castShadow = true;
+            playerGroup.add(torsoMesh);
+
+            const armGeo = new THREE.CylinderGeometry(0.15, 0.15, 0.7, 16);
+            const armCapGeo = new THREE.SphereGeometry(0.15, 16, 16);
+
+            leftArm = new THREE.Group();
+            leftArm.position.set(-0.75, 1.35, 0);
+            const leftArmMesh = new THREE.Mesh(armGeo, robotMaterial);
+            leftArmMesh.position.y = -0.25;
+            leftArmMesh.castShadow = true;
+            const leftCap = new THREE.Mesh(armCapGeo, robotMaterial);
+            leftCap.position.y = -0.6;
+            leftCap.castShadow = true;
+            leftArm.add(leftArmMesh);
+            leftArm.add(leftCap);
+            playerGroup.add(leftArm);
+
+            rightArm = new THREE.Group();
+            rightArm.position.set(0.75, 1.35, 0);
+            const rightArmMesh = new THREE.Mesh(armGeo, robotMaterial);
+            rightArmMesh.position.y = -0.25;
+            rightArmMesh.castShadow = true;
+            const rightCap = new THREE.Mesh(armCapGeo, robotMaterial);
+            rightCap.position.y = -0.6;
+            rightCap.castShadow = true;
+            rightArm.add(rightArmMesh);
+            rightArm.add(rightCap);
+            playerGroup.add(rightArm);
+
+            const legGeo = new THREE.CylinderGeometry(0.16, 0.16, 0.6, 16);
+            const legCapGeo = new THREE.SphereGeometry(0.16, 16, 16);
+
+            const leftLeg = new THREE.Group();
+            leftLeg.position.set(-0.25, 0.55, 0);
+            const leftLegMesh = new THREE.Mesh(legGeo, robotMaterial);
+            leftLegMesh.position.y = -0.25;
+            leftLegMesh.castShadow = true;
+            const leftLegCap = new THREE.Mesh(legCapGeo, robotMaterial);
+            leftLegCap.position.y = -0.55;
+            leftLegCap.castShadow = true;
+            leftLeg.add(leftLegMesh);
+            leftLeg.add(leftLegCap);
+            playerGroup.add(leftLeg);
+
+            const rightLeg = new THREE.Group();
+            rightLeg.position.set(0.25, 0.55, 0);
+            const rightLegMesh = new THREE.Mesh(legGeo, robotMaterial);
+            rightLegMesh.position.y = -0.25;
+            rightLegMesh.castShadow = true;
+            const rightLegCap = new THREE.Mesh(legCapGeo, robotMaterial);
+            rightLegCap.position.y = -0.55;
+            rightLegCap.castShadow = true;
+            rightLeg.add(rightLegMesh);
+            rightLeg.add(rightLegCap);
+            playerGroup.add(rightLeg);
+
+            // Store references for animation
+            playerMesh = playerGroup;
+            playerMesh.userData = {
+                leftArm: leftArm,
+                rightArm: rightArm,
+                leftLeg: leftLeg,
+                rightLeg: rightLeg,
+                head: headGroup
+            };
+
+            playerGroup.position.set(0, 0, 0);
+            scene.add(playerGroup);
+        }
+
+        function spawnCrystals() {
+            zones.forEach((zone, index) => {
+                const crystalGeo = new THREE.OctahedronGeometry(0.7, 0);
+                const crystalMat = new THREE.MeshStandardMaterial({
+                    color: zone.color,
+                    emissive: zone.color,
+                    emissiveIntensity: 0.8,
+                    roughness: 0.2,
+                    metalness: 0.8
+                });
+                const crystal = new THREE.Mesh(crystalGeo, crystalMat);
+                crystal.position.set(zone.crystalPos.x, 1.2, zone.crystalPos.z);
+                crystal.castShadow = true;
+                crystal.userData = { zoneIndex: index, collected: false };
+                scene.add(crystal);
+                crystals.push(crystal);
+            });
+        }
+
+        function handleKey(e, isDown) {
+            const key = e.key.toLowerCase();
+            if (key === 'w' || e.code === 'KeyW') keys.w = isDown;
+            if (key === 's' || e.code === 'KeyS') keys.s = isDown;
+            if (key === 'a' || e.code === 'KeyA') keys.a = isDown;
+            if (key === 'd' || e.code === 'KeyD') keys.d = isDown;
+        }
+
+        const clock = new THREE.Clock();
+
+        function animate() {
+            requestAnimationFrame(animate);
+
+            const delta = clock.getDelta();
+            const elapsedTime = clock.getElapsedTime();
+
+            if (state.gameStarted && !state.isPaused && playerMesh) {
+                const moveSpeed = 6 * delta;
+                const oldX = playerMesh.position.x;
+                const oldZ = playerMesh.position.z;
+
+                let forward = 0;
+                let right = 0;
+
+                // W = forward, S = backward, A = left, D = right
+                if (keys.w) forward += 1;
+                if (keys.s) forward -= 1;
+                if (keys.a) right -= 1;
+                if (keys.d) right += 1;
+
+                const isMoving = (forward !== 0 || right !== 0);
+
+                if (isMoving) {
+                    const moveVector = new THREE.Vector3(right, 0, forward);
+                    moveVector.applyAxisAngle(new THREE.Vector3(0, 1, 0), cameraAngle);
+                    moveVector.normalize();
+                    
+                    playerMesh.position.x += moveVector.x * moveSpeed;
+                    playerMesh.position.z += moveVector.z * moveSpeed;
+
+                    if (checkCollision(playerMesh.position)) {
+                        playerMesh.position.x = oldX;
+                        playerMesh.position.z = oldZ;
+                    }
+
+                    const targetRotation = Math.atan2(moveVector.x, moveVector.z);
+                    playerMesh.rotation.y = THREE.MathUtils.lerp(playerMesh.rotation.y, targetRotation, 0.25);
+
+                    // Improved & Smoother Running Animation with sine interpolation
+                    const runCycle = elapsedTime * 16;
+                    playerMesh.userData.leftArm.rotation.x = Math.sin(runCycle) * 0.85;
+                    playerMesh.userData.rightArm.rotation.x = -Math.sin(runCycle) * 0.85;
+                    playerMesh.userData.leftLeg.rotation.x = -Math.sin(runCycle) * 0.75;
+                    playerMesh.userData.rightLeg.rotation.x = Math.sin(runCycle) * 0.75;
+                    
+                    // Natural fluid vertical bobbing & head tilt
+                    playerMesh.position.y = Math.abs(Math.sin(runCycle * 2)) * 0.15;
+                    playerMesh.userData.head.rotation.z = Math.sin(runCycle) * 0.08;
+                } else {
+                    // Smoothly interpolate limbs and body back to idle posture
+                    playerMesh.userData.leftArm.rotation.x = THREE.MathUtils.lerp(playerMesh.userData.leftArm.rotation.x, 0, 0.2);
+                    playerMesh.userData.rightArm.rotation.x = THREE.MathUtils.lerp(playerMesh.userData.rightArm.rotation.x, 0, 0.2);
+                    playerMesh.userData.leftLeg.rotation.x = THREE.MathUtils.lerp(playerMesh.userData.leftLeg.rotation.x, 0, 0.2);
+                    playerMesh.userData.rightLeg.rotation.x = THREE.MathUtils.lerp(playerMesh.userData.rightLeg.rotation.x, 0, 0.2);
+                    playerMesh.userData.head.rotation.z = THREE.MathUtils.lerp(playerMesh.userData.head.rotation.z, 0, 0.2);
+                    playerMesh.position.y = THREE.MathUtils.lerp(playerMesh.position.y, 0, 0.2);
+                }
+
+                // Camera follow
+                const idealOffset = new THREE.Vector3(0, 5, -8).applyAxisAngle(new THREE.Vector3(0, 1, 0), cameraAngle);
+                camera.position.copy(playerMesh.position).add(idealOffset);
+                const targetLookAt = playerMesh.position.clone().add(new THREE.Vector3(0, 1.2, 0));
+                camera.lookAt(targetLookAt);
+
+                // Rotate Crystals & Pulsate Barriers
+                crystals.forEach(c => {
+                    c.rotation.y += 1.5 * delta;
+                });
+
+                barriers.forEach(b => {
+                    if (!b.userData.isOpen) {
+                        b.material.emissiveIntensity = 0.4 + Math.sin(elapsedTime * 6) * 0.3;
+                    }
+                });
+
+                // Check Crystal Proximity
+                crystals.forEach(crystal => {
+                    if (!crystal.userData.collected && playerMesh.position.distanceTo(crystal.position) < 1.8) {
+                        triggerChallenge(crystal.userData.zoneIndex);
+                    }
+                });
+            }
+
+            renderer.render(scene, camera);
+        }
+
+        function checkCollision(pos) {
+            // Expanded outer bounds check
+            if (pos.x < -20.5 || pos.x > 20.5 || pos.z < -4 || pos.z > 53.5) return true;
+
+            for (let wall of walls) {
+                const box = new THREE.Box3().setFromObject(wall);
+                box.expandByScalar(0.4);
+                if (box.containsPoint(pos)) {
+                    return true;
+                }
+            }
+
+            for (let barrier of barriers) {
+                if (!barrier.userData.isOpen) {
+                    const box = new THREE.Box3().setFromObject(barrier);
+                    // Strictly expand bounding box so player cannot squeeze past the edges
+                    box.expandByScalar(0.8);
+                    if (box.containsPoint(pos)) {
+                        return true;
+                    }
+                }
+            }
+            return false;
+        }
+
+        function triggerChallenge(zoneIndex) {
+            state.isPaused = true;
+            const zone = zones[zoneIndex];
+
+            currentActiveQuestionText = zone.challenge.question;
+
+            document.getElementById('challenge-badge').innerText = `Zone ${zoneIndex + 1} Challenge`;
+            document.getElementById('challenge-zone-tag').innerText = zone.name;
+            document.getElementById('challenge-question').innerText = zone.challenge.question;
+            
+            speakText(zone.challenge.question);
+
+            const optionsContainer = document.getElementById('challenge-options');
+            optionsContainer.innerHTML = '';
+
+            zone.challenge.options.forEach((opt, idx) => {
+                const btn = document.createElement('button');
+                btn.className = "w-full py-3 px-4 bg-rose-50 hover:bg-rose-100 text-rose-900 font-semibold rounded-2xl border-2 border-rose-200 transition text-left flex items-center justify-between";
+                btn.innerHTML = `<span>✨ ${opt}</span>`;
+                btn.onclick = () => handleAnswer(idx, zone.challenge.correctIndex, zone.challenge.feedback, zoneIndex);
+                optionsContainer.appendChild(btn);
+            });
+
+            document.getElementById('challenge-feedback').classList.add('hidden');
+            document.getElementById('challenge-next-btn').classList.add('hidden');
+            document.getElementById('challenge-modal').classList.remove('hidden');
+        }
+
+        function handleAnswer(selectedIndex, correctIndex, feedbackText, zoneIndex) {
+            const feedbackDiv = document.getElementById('challenge-feedback');
+            feedbackDiv.classList.remove('hidden');
+
+            if (selectedIndex === correctIndex) {
+                feedbackDiv.className = "p-4 rounded-2xl text-center font-bold text-sm mb-4 bg-emerald-100 text-emerald-800 border-2 border-emerald-300";
+                feedbackDiv.innerHTML = `🎉 ${feedbackText}`;
+                
+                speakText(feedbackText);
+
+                document.getElementById('challenge-options').innerHTML = '';
+                document.getElementById('challenge-next-btn').classList.remove('hidden');
+
+                crystals[zoneIndex].userData.collected = true;
+                scene.remove(crystals[zoneIndex]);
+
+                if (barriers[zoneIndex]) {
+                    barriers[zoneIndex].userData.isOpen = true;
+                    const barrierMesh = barriers[zoneIndex];
+                    let fadeProgress = 0;
+                    const fadeInterval = setInterval(() => {
+                        fadeProgress += 0.05;
+                        barrierMesh.position.y -= 0.1;
+                        if (barrierMesh.material) {
+                            barrierMesh.material.transparent = true;
+                            barrierMesh.material.opacity = Math.max(0, 1 - fadeProgress * 2);
+                        }
+                        if (fadeProgress >= 1) {
+                            clearInterval(fadeInterval);
+                            scene.remove(barrierMesh);
+                        }
+                    }, 30);
+                }
+
+                state.crystalsCollected++;
+                state.challengesCompleted++;
+                state.score += 20;
+
+                document.getElementById('hud-crystals').innerText = `${state.crystalsCollected} / 5`;
+                document.getElementById('hud-score').innerText = `${state.score} pts`;
+
+                const nextBtn = document.getElementById('challenge-next-btn');
+                nextBtn.onclick = () => {
+                    document.getElementById('challenge-modal').classList.add('hidden');
+                    state.isPaused = false;
+
+                    if (state.crystalsCollected >= 5) {
+                        document.getElementById('final-score-display').innerText = `${state.score} / 100 pts`;
+                        document.getElementById('victory-screen').classList.remove('hidden');
+                        displayLeaderboard();
+                    } else if (state.crystalsCollected < zones.length) {
+                        const nextZone = zones[state.crystalsCollected];
+                        document.getElementById('hud-zone').innerText = nextZone.name;
+                        document.getElementById('hud-objective').innerText = `Find the crystal in ${nextZone.name}!`;
+                    }
+                };
+            } else {
+                feedbackDiv.className = "p-4 rounded-2xl text-center font-bold text-sm mb-4 bg-rose-100 text-rose-800 border-2 border-rose-300";
+                feedbackDiv.innerHTML = `💡 Not quite right! Try reading the question again and pick another option.`;
+                speakText("Not quite right! Try another option.");
+            }
+        }
+
+        function onWindowResize() {
+            camera.aspect = window.innerWidth / window.innerHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(window.innerWidth, window.innerHeight);
+        }
+
+        window.onload = init;
+    </script>
+</body>
+</html>
